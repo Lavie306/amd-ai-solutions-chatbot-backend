@@ -1,0 +1,84 @@
+[project]
+name = "amd-chatbot-backend"
+version = "0.1.0"
+description = "AMD AI Solutions Website Chatbot — Backend API"
+requires-python = ">=3.11"
+
+dependencies = [
+    # Web framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+
+    # Database
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "aiosqlite>=0.20.0",
+
+    # AI / LLM
+    "openai>=1.40.0",
+
+    # RAG / Vector DB
+    "chromadb>=0.5.0",
+    "langchain>=0.2.0",
+    "langchain-openai>=0.1.0",
+    "langchain-chroma>=0.1.0",
+    "pypdf>=4.0.0",
+    "python-docx>=1.1.0",
+    "unstructured>=0.14.0",
+
+    # Scheduler
+    "apscheduler>=3.10.0",
+
+    # Email
+    "sendgrid>=6.11.0",
+    "jinja2>=3.1.0",
+
+    # Auth / Security
+    "python-jose[cryptography]>=3.3.0",
+    "passlib>=1.7.4",
+    "bcrypt<4.0.0",
+    "python-multipart>=0.0.9",
+
+    # Config
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+
+    # Utils
+    "httpx>=0.27.0",
+    "tenacity>=8.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true

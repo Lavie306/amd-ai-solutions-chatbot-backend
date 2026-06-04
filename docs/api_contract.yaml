@@ -1,0 +1,229 @@
+# API Contract — AMD Chatbot Backend v1.0
+# Dùng cho Intern B khi kết nối Admin Dashboard và Widget
+
+openapi: "3.0.3"
+info:
+  title: AMD Chatbot API
+  version: "1.0.0"
+  description: Backend API cho AMD AI Solutions Website Chatbot
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ChatRequest:
+      type: object
+      required: [session_id, message]
+      properties:
+        session_id:
+          type: string
+          description: UUID tạo ở phía widget, giữ nguyên xuyên suốt session
+        message:
+          type: string
+          maxLength: 2000
+
+    ChatResponse:
+      type: object
+      properties:
+        session_id: { type: string }
+        reply: { type: string }
+        intent:
+          type: string
+          nullable: true
+          enum: [ask_price, want_project, request_consult, general_faq]
+        lead_status:
+          type: string
+          nullable: true
+          enum: [IDLE, COLLECTING, COMPLETE]
+
+    Lead:
+      type: object
+      properties:
+        id: { type: integer }
+        session_id: { type: string }
+        name: { type: string, nullable: true }
+        contact: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [NEW, CONTACTED, CONSULTING, QUOTED, NEGOTIATING, WON, LOST, COLD]
+        fields:
+          type: object
+          description: Flexible fields AI thu thập (project_type, scale, timeline, ...)
+        notes: { type: string, nullable: true }
+        chat_log:
+          type: array
+          items:
+            type: object
+            properties:
+              role: { type: string, enum: [user, assistant] }
+              content: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+paths:
+  /api/auth/login:
+    post:
+      summary: Đăng nhập Admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, default: bearer }
+
+  /api/chat:
+    post:
+      summary: Widget gửi tin nhắn (public, không cần JWT)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+
+  /api/leads:
+    get:
+      summary: Danh sách leads
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, default: 20 }
+
+  /api/leads/{lead_id}:
+    get:
+      summary: Chi tiết lead + chat log
+      security:
+        - BearerAuth: []
+    patch:
+      summary: Cập nhật status / notes
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                notes: { type: string }
+
+  /api/documents:
+    get:
+      summary: Danh sách documents KB
+      security:
+        - BearerAuth: []
+    post:
+      summary: Upload document (multipart/form-data)
+      security:
+        - BearerAuth: []
+
+  /api/documents/{doc_id}:
+    delete:
+      summary: Xóa document
+      security:
+        - BearerAuth: []
+
+  /api/documents/{doc_id}/reindex:
+    post:
+      summary: Re-embed document
+      security:
+        - BearerAuth: []
+
+  /api/followup/rules:
+    get:
+      summary: Danh sách follow-up rules
+      security:
+        - BearerAuth: []
+    post:
+      summary: Tạo rule mới
+      security:
+        - BearerAuth: []
+
+  /api/followup/rules/{rule_id}:
+    patch:
+      summary: Sửa rule
+      security:
+        - BearerAuth: []
+    delete:
+      summary: Xóa rule
+      security:
+        - BearerAuth: []
+
+  /api/followup/jobs:
+    get:
+      summary: Xem danh sách jobs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: lead_id
+          in: query
+          schema: { type: integer }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, sent, cancelled] }
+
+  /api/followup/jobs/{job_id}/cancel:
+    post:
+      summary: Cancel job thủ công
+      security:
+        - BearerAuth: []
+
+  /api/settings:
+    get:
+      summary: Tất cả settings
+      security:
+        - BearerAuth: []
+
+  /api/settings/{key}:
+    get:
+      summary: Lấy 1 setting
+      security:
+        - BearerAuth: []
+    put:
+      summary: Upsert setting
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value: {}   # any JSON value
+
+  /health:
+    get:
+      summary: Health check (no auth)

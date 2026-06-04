@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.env
+
+# Data (không commit dữ liệu thực)
+data/knowledge_base/
+data/chroma_db/
+data/*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build
+dist/
+*.egg-info/
