@@ -1,9 +1,10 @@
 """
 Unit tests cho Intent Detection — 20 test cases theo DoD của spec.
+Bao gồm: keyword fallback (unit) + OpenAI primary + fallback integration.
 """
 import pytest
+from unittest.mock import AsyncMock, patch
 
-# Dùng monkeypatch để mock OpenAI call
 INTENT_MAP = {
     # ask_price
     "giá làm chatbot bao nhiêu?": "ask_price",
@@ -32,43 +33,105 @@ INTENT_MAP = {
 }
 
 
+# ── Keyword Fallback Tests ──────────────────────────────────
+
+
+@pytest.mark.parametrize("message,expected_intent", [
+    (m, e) for m, e in INTENT_MAP.items() if e != "general_faq"
+])
+def test_keyword_detection_lead_intents(message: str, expected_intent: str) -> None:
+    """Keyword fallback detect đúng các lead intent."""
+    from app.agent.chat_agent import detect_intent_keyword
+
+    result = detect_intent_keyword(message)
+    assert result == expected_intent, (
+        f"Message: '{message}'\nExpected: {expected_intent}\nGot: {result}"
+    )
+
+
+@pytest.mark.parametrize("message", [
+    m for m, e in INTENT_MAP.items() if e == "general_faq"
+])
+def test_keyword_detection_general_faq(message: str) -> None:
+    """general_faq không khớp keyword nào → trả về None."""
+    from app.agent.chat_agent import detect_intent_keyword
+
+    result = detect_intent_keyword(message)
+    assert result is None, (
+        f"Message: '{message}'\nExpected: None (general_faq)\nGot: {result}"
+    )
+
+
+def test_keyword_accuracy() -> None:
+    """>=80% accuracy trên 20 test cases (keyword fallback path)."""
+    from app.agent.chat_agent import detect_intent_keyword
+
+    correct = 0
+    for message, expected in INTENT_MAP.items():
+        result = detect_intent_keyword(message)
+        if expected == "general_faq":
+            if result is None:
+                correct += 1
+        elif result == expected:
+            correct += 1
+
+    accuracy = correct / len(INTENT_MAP)
+    assert accuracy >= 0.8, f"Keyword intent accuracy {accuracy:.1%} < 80% requirement"
+
+
+# ── OpenAI Path Tests (with client mock) ────────────────────
+
+
 @pytest.fixture
-def mock_openai(monkeypatch):
-    """Mock OpenAI để test không tốn tiền."""
-    import app.agent.chat_agent as agent_module
-
-    async def mock_detect_intent(user_message: str) -> str:
-        return INTENT_MAP.get(user_message, "general_faq")
-
-    monkeypatch.setattr(agent_module, "detect_intent", mock_detect_intent)
-    return mock_detect_intent
+def mock_openai_client():
+    """Mock OpenAI client để test detect_intent không tốn phí."""
+    with patch("app.agent.chat_agent.client") as mock:
+        mock.chat.completions.create = AsyncMock()
+        yield mock
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("message,expected_intent", list(INTENT_MAP.items()))
-async def test_intent_detection(message: str, expected_intent: str, mock_openai) -> None:
+async def test_detect_intent_openai_success(
+    message: str, expected_intent: str, mock_openai_client
+) -> None:
+    """OpenAI thành công → trả về intent từ API."""
     from app.agent.chat_agent import detect_intent
+
+    mock_response = AsyncMock()
+    mock_response.choices = [AsyncMock()]
+    mock_response.choices[0].message.content = expected_intent
+    mock_openai_client.chat.completions.create.return_value = mock_response
 
     result = await detect_intent(message)
     assert result == expected_intent, (
-        f"Message: '{message}'\n"
-        f"Expected: {expected_intent}\n"
-        f"Got: {result}"
+        f"Message: '{message}'\nExpected: {expected_intent}\nGot: {result}"
     )
 
 
 @pytest.mark.asyncio
-async def test_intent_detection_accuracy(mock_openai) -> None:
-    """Kiểm tra tổng thể accuracy >= 80% (DoD requirement)."""
+async def test_detect_intent_openai_fallback(mock_openai_client) -> None:
+    """OpenAI fail → fallback sang keyword detection."""
     from app.agent.chat_agent import detect_intent
 
-    correct = 0
-    total = len(INTENT_MAP)
+    mock_openai_client.chat.completions.create.side_effect = Exception("OpenAI unavailable")
 
-    for message, expected in INTENT_MAP.items():
-        result = await detect_intent(message)
-        if result == expected:
-            correct += 1
+    result = await detect_intent("giá làm chatbot bao nhiêu?")
+    assert result == "ask_price"
 
-    accuracy = correct / total
-    assert accuracy >= 0.8, f"Intent accuracy {accuracy:.1%} < 80% requirement"
+    result = await detect_intent("công ty ở đâu?")
+    assert result == "general_faq"
+
+
+@pytest.mark.asyncio
+async def test_detect_intent_openai_invalid_response(mock_openai_client) -> None:
+    """OpenAI trả về intent không hợp lệ → fallback keyword."""
+    from app.agent.chat_agent import detect_intent
+
+    mock_response = AsyncMock()
+    mock_response.choices = [AsyncMock()]
+    mock_response.choices[0].message.content = "invalid_intent_xyz"
+    mock_openai_client.chat.completions.create.return_value = mock_response
+
+    result = await detect_intent("báo giá chatbot")
+    assert result == "ask_price"

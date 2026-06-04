@@ -135,7 +135,7 @@ Khi status thay đổi → scheduler tự tạo follow-up jobs theo rules.
 
 ## Sync với Intern B
 
-- **API contract**: Xem `docs/api_contract.md`
+- **API contract**: Xem `docs/api_contract.yaml`
 - **Tuần 1**: Pair programming, align schemas
 - **Tuần 2+**: Intern B gọi API qua `http://localhost:8000`
 - **CORS**: Đã cấu hình cho `http://localhost:5173` (Vite dev server)

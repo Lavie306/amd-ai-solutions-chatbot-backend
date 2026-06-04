@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -41,18 +42,23 @@ async def upload_document(
     db: AsyncSession = Depends(get_db),
     _: str = Depends(require_admin),
 ) -> DocumentOut:
-    suffix = Path(file.filename or "").suffix.lower()
+    raw_name = file.filename or ""
+    suffix = Path(raw_name).suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, f"Chỉ chấp nhận: {', '.join(ALLOWED_EXTENSIONS)}")
 
+    safe_name = re.sub(r"[^\w.\-]", "_", Path(raw_name).name)
+    if safe_name != raw_name:
+        logger.warning("Sanitized filename: '%s' → '%s'", raw_name, safe_name)
+
     # Lưu file
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    file_path = UPLOAD_DIR / file.filename
+    file_path = UPLOAD_DIR / safe_name
     content = await file.read()
     file_path.write_bytes(content)
 
     # Tạo record DB với status indexing
-    doc = Document(filename=file.filename, status="indexing")
+    doc = Document(filename=safe_name, status="indexing")
     db.add(doc)
     await db.commit()
     await db.refresh(doc)

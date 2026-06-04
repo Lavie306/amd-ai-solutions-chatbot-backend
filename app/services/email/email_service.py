@@ -8,6 +8,7 @@ Hỗ trợ:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -102,6 +103,50 @@ DEFAULT_FOLLOWUP_HTML = """
 <br>
 <p>Trân trọng,<br>Team AMD AI Solutions</p>
 """
+
+
+async def async_send_lead_notify(
+    lead_id: int,
+    name: str,
+    contact: str,
+    extra_fields: dict[str, Any],
+    chat_log: list[dict],
+    dashboard_base_url: str = "http://localhost:5173",
+    custom_subject_template: str | None = None,
+    custom_body_template: str | None = None,
+) -> bool:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        send_lead_notify,
+        lead_id,
+        name,
+        contact,
+        extra_fields,
+        chat_log,
+        dashboard_base_url,
+        custom_subject_template,
+        custom_body_template,
+    )
+
+
+async def async_send_followup_email(
+    to_email: str,
+    lead_data: dict[str, Any],
+    template_str: str | None = None,
+    subject_str: str | None = None,
+    zalo_number: str = "",
+) -> bool:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        send_followup_email,
+        to_email,
+        lead_data,
+        template_str,
+        subject_str,
+        zalo_number,
+    )
 
 
 def send_lead_notify(

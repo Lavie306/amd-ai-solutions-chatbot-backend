@@ -12,6 +12,7 @@ from app.core.security import require_admin
 from app.db.session import get_db
 from app.models.models import Setting
 from app.schemas.schemas import SettingOut, SettingUpsert
+from app.services.settings_service import settings_service
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
@@ -55,6 +56,7 @@ async def upsert_setting(
         setting.value = body.value
         db.add(setting)
 
+    settings_service.invalidate()
     await db.commit()
     await db.refresh(setting)
     return setting
@@ -70,5 +72,6 @@ async def delete_setting(
     setting = result.scalar_one_or_none()
     if not setting:
         raise HTTPException(404, f"Setting '{key}' not found")
+    settings_service.invalidate()
     await db.delete(setting)
     await db.commit()

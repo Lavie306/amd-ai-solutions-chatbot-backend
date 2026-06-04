@@ -14,6 +14,7 @@ import os
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-dummy-key-for-pytest")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest-not-real")
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test_amd_chatbot.db"
 
 # ── Mock heavy optional packages ──────────────────────────
 # Để unit test chạy được khi chromadb/langchain chưa install
@@ -60,5 +61,7 @@ for _pkg in _HEAVY_PACKAGES:
             _mock.SendGridAPIClient = MagicMock()
             _mock.Mail = MagicMock()
             sys.modules[_pkg] = _mock
+
+
 
 

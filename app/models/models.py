@@ -24,6 +24,7 @@ class Lead(Base):
     name: Mapped[str | None] = mapped_column(Text)
     contact: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, default="NEW")
+    lead_state: Mapped[str] = mapped_column(Text, default="IDLE")
 
     # Flexible fields AI thu thập — lưu dạng JSON string
     _fields: Mapped[str | None] = mapped_column("fields", Text, default="{}")

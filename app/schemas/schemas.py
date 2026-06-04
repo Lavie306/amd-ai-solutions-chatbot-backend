@@ -52,6 +52,7 @@ class LeadUpdate(BaseModel):
 class LeadOut(LeadBase):
     id: int
     session_id: str
+    lead_state: str = "IDLE"
     chat_log: list[dict]
     created_at: datetime
     updated_at: datetime
@@ -65,10 +66,25 @@ class LeadListOut(BaseModel):
     name: str | None
     contact: str | None
     status: str
+    lead_state: str = "IDLE"
     fields: dict[str, Any]
+    notes: str | None = None
     created_at: datetime
+    next_followup_date: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class PaginationMeta(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class PaginatedLeadList(BaseModel):
+    items: list[LeadListOut]
+    pagination: PaginationMeta
 
 
 # ─────────────────────────────────────────────

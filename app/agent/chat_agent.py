@@ -4,12 +4,15 @@ Chat Agent — Điều phối toàn bộ luồng hội thoại:
      - HyDE query expansion (port từ healthcare)
      - Grounding check (port từ healthcare) — ngăn bot bịa
   2. Intent Detection: phát hiện ý định lead tiềm năng
+     - OpenAI classification (primary)
+     - Keyword/regex fallback khi OpenAI unavailable
   3. Lead Collection State Machine: IDLE → COLLECTING → COMPLETE
   4. Handoff message khi lead complete
 """
 from __future__ import annotations
 
 import logging
+import re
 from enum import Enum
 from typing import Any
 
@@ -35,7 +38,25 @@ class LeadState(str, Enum):
 
 
 # ─────────────────────────────────────────────
-# Intent Detection
+# Intent Detection — Keyword/Regex Fallback
+# ─────────────────────────────────────────────
+INTENT_KEYWORD_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'(giá|chi phí|ngân sách|báo giá|tốn bao nhiêu|mất bao nhiêu|bao nhiêu tiền|budget|cost|pricing|quote)', re.IGNORECASE), "ask_price"),
+    (re.compile(r'(muốn làm|xây dựng|cần tư vấn giải pháp|tích hợp|cần làm|muốn xây|cần xây|làm app|làm web|automation|cần dự án)', re.IGNORECASE), "want_project"),
+    (re.compile(r'(tư vấn viên|cho tôi gặp|demo|đặt lịch|gặp trực tiếp|chuyên gia|liên hệ tư vấn|cuộc hẹn|muốn gặp|xin demo|tư vấn cho tôi)', re.IGNORECASE), "request_consult"),
+]
+
+
+def detect_intent_keyword(user_message: str) -> str | None:
+    """Fallback keyword/regex intent detection khi OpenAI unavailable."""
+    for pattern, intent in INTENT_KEYWORD_PATTERNS:
+        if pattern.search(user_message):
+            return intent
+    return None
+
+
+# ─────────────────────────────────────────────
+# Intent Detection — Primary (OpenAI + Fallback)
 # ─────────────────────────────────────────────
 INTENT_SYSTEM_PROMPT = """Bạn là hệ thống phân loại intent cho chatbot AMD AI Solutions.
 Phân tích câu hỏi của khách và trả về 1 trong 4 intent sau (chỉ trả về tên intent, không giải thích):
@@ -49,20 +70,25 @@ Chỉ trả về đúng 1 từ: ask_price | want_project | request_consult | gen
 
 
 async def detect_intent(user_message: str) -> str:
-    """Phân loại intent của tin nhắn khách."""
-    response = await client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {"role": "system", "content": INTENT_SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        max_tokens=20,
-        temperature=0,
-    )
-    intent = response.choices[0].message.content.strip().lower()
-    if intent not in ("ask_price", "want_project", "request_consult", "general_faq"):
-        intent = "general_faq"
-    return intent
+    """Phân loại intent: ưu tiên OpenAI, fallback keyword/regex."""
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": INTENT_SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            max_tokens=20,
+            temperature=0,
+        )
+        intent = response.choices[0].message.content.strip().lower()
+        if intent in ("ask_price", "want_project", "request_consult", "general_faq"):
+            return intent
+    except Exception as e:
+        logger.warning(f"OpenAI intent detection failed, falling back to keyword: {e}")
+
+    keyword_intent = detect_intent_keyword(user_message)
+    return keyword_intent if keyword_intent else "general_faq"
 
 
 # ─────────────────────────────────────────────
