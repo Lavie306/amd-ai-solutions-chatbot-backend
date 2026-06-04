@@ -2,14 +2,14 @@
 Integration test cho chat endpoint.
 """
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(app=app, base_url="http://test") as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
 
@@ -33,7 +33,7 @@ async def test_chat_creates_session(client: AsyncClient, monkeypatch) -> None:
             "collected_fields": {},
         }
 
-    monkeypatch.setattr(chat_agent, "handle_chat", mock_handle_chat)
+    monkeypatch.setattr("app.api.routes.chat.handle_chat", mock_handle_chat)
 
     import uuid
     session_id = str(uuid.uuid4())

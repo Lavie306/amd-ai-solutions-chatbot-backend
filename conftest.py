@@ -42,17 +42,23 @@ _HEAVY_PACKAGES = [
 ]
 
 for _pkg in _HEAVY_PACKAGES:
-    if _pkg not in sys.modules:
-        _mock = _make_mock_module(_pkg)
-        # Thêm các attribute thường dùng
-        _mock.Chroma = MagicMock()
-        _mock.OpenAIEmbeddings = MagicMock()
-        _mock.RecursiveCharacterTextSplitter = MagicMock()
-        _mock.Document = MagicMock()
-        _mock.PyPDFLoader = MagicMock()
-        _mock.TextLoader = MagicMock()
-        _mock.UnstructuredWordDocumentLoader = MagicMock()
-        _mock.SendGridAPIClient = MagicMock()
-        _mock.Mail = MagicMock()
-        sys.modules[_pkg] = _mock
+    try:
+        # Thử import gói thật xem có sẵn trong env không
+        # Nếu import thành công, python tự động điền sys.modules[_pkg] bằng gói thật
+        __import__(_pkg)
+    except (ImportError, ModuleNotFoundError):
+        if _pkg not in sys.modules:
+            _mock = _make_mock_module(_pkg)
+            # Thêm các attribute thường dùng
+            _mock.Chroma = MagicMock()
+            _mock.OpenAIEmbeddings = MagicMock()
+            _mock.RecursiveCharacterTextSplitter = MagicMock()
+            _mock.Document = MagicMock()
+            _mock.PyPDFLoader = MagicMock()
+            _mock.TextLoader = MagicMock()
+            _mock.UnstructuredWordDocumentLoader = MagicMock()
+            _mock.SendGridAPIClient = MagicMock()
+            _mock.Mail = MagicMock()
+            sys.modules[_pkg] = _mock
+
 
