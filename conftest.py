@@ -16,6 +16,15 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-dummy-key-for-pytest")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest-not-real")
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test_amd_chatbot.db"
 
+_workspace_tmp = Path(__file__).parent / "data" / "tmp" / "pytest"
+_workspace_tmp.mkdir(parents=True, exist_ok=True)
+os.environ["TMP"] = str(_workspace_tmp)
+os.environ["TEMP"] = str(_workspace_tmp)
+os.environ["TMPDIR"] = str(_workspace_tmp)
+
+import tempfile
+tempfile.tempdir = str(_workspace_tmp)
+
 # ── Mock heavy optional packages ──────────────────────────
 # Để unit test chạy được khi chromadb/langchain chưa install
 
@@ -31,6 +40,7 @@ _HEAVY_PACKAGES = [
     "langchain_openai",
     "langchain_community",
     "langchain_community.document_loaders",
+    "langchain_text_splitters",
     "langchain_core",
     "langchain_core.documents",
     "langchain.text_splitter",
@@ -61,7 +71,5 @@ for _pkg in _HEAVY_PACKAGES:
             _mock.SendGridAPIClient = MagicMock()
             _mock.Mail = MagicMock()
             sys.modules[_pkg] = _mock
-
-
 
 

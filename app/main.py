@@ -12,7 +12,11 @@ from app.api.routes import chat, documents, followup, leads, settings as setting
 from app.core.config import get_settings
 from app.core.security import router as auth_router
 from app.db.session import init_db
-from app.scheduler.followup_scheduler import shutdown_scheduler, start_scheduler
+from app.scheduler.followup_scheduler import (
+    reload_pending_followup_jobs,
+    shutdown_scheduler,
+    start_scheduler,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +58,8 @@ async def on_startup() -> None:
     logger.info("Starting AMD Chatbot API...")
     await init_db()
     start_scheduler()
+    reloaded = await reload_pending_followup_jobs()
+    logger.info(f"Reloaded {reloaded} pending follow-up jobs")
     logger.info("Ready ✓")
 
 

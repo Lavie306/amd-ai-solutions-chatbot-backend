@@ -163,6 +163,123 @@ async def test_update_lead_status(mock_agent, client: AsyncClient, admin_headers
 
 
 @pytest.mark.asyncio
+async def test_update_lead_status_creates_followup_jobs(
+    mock_agent, client: AsyncClient, admin_headers
+) -> None:
+    """PATCH status=QUOTED phải tạo FollowupJob cho mỗi rule matching."""
+    from app.db.session import AsyncSessionLocal
+    from app.models.models import FollowupRule
+
+    async with AsyncSessionLocal() as db:
+        db.add(FollowupRule(
+            trigger_status="QUOTED",
+            delay_days=3,
+            action_type="email_customer",
+            template=None,
+            is_active=True,
+        ))
+        db.add(FollowupRule(
+            trigger_status="QUOTED",
+            delay_days=7,
+            action_type="email_customer",
+            template=None,
+            is_active=True,
+        ))
+        await db.commit()
+
+    import datetime
+    import uuid
+    sid = str(uuid.uuid4())
+    await client.post(
+        "/api/chat",
+        json={"session_id": sid, "message": "Test status -> followup"},
+    )
+
+    list_res = await client.get("/api/leads", headers=admin_headers)
+    lead_id = next(
+        item["id"] for item in list_res.json()["items"] if item["session_id"] == sid
+    )
+
+    upd = await client.patch(
+        f"/api/leads/{lead_id}",
+        json={"status": "QUOTED"},
+        headers=admin_headers,
+    )
+    assert upd.status_code == 200
+
+    jobs_res = await client.get(
+        f"/api/followup/jobs?lead_id={lead_id}", headers=admin_headers
+    )
+    assert jobs_res.status_code == 200
+    jobs = jobs_res.json()
+    assert len(jobs) >= 2
+    assert all(j["status"] == "pending" for j in jobs)
+    assert all(j["action_type"] == "email_customer" for j in jobs)
+
+    now = datetime.datetime.now()
+    scheduled_dates = [datetime.datetime.fromisoformat(j["scheduled"]) for j in jobs]
+    three_days = now + datetime.timedelta(days=3)
+    seven_days = now + datetime.timedelta(days=7)
+    assert any(abs((d - three_days).total_seconds()) < 60 for d in scheduled_dates)
+    assert any(abs((d - seven_days).total_seconds()) < 60 for d in scheduled_dates)
+
+
+@pytest.mark.asyncio
+async def test_update_lead_status_to_terminal_cancels_pending_jobs(
+    mock_agent, client: AsyncClient, admin_headers
+) -> None:
+    """PATCH sang WON/LOST/COLD phải cancel các pending jobs của lead đó."""
+    from app.db.session import AsyncSessionLocal
+    from app.models.models import FollowupRule
+
+    async with AsyncSessionLocal() as db:
+        db.add(FollowupRule(
+            trigger_status="QUOTED",
+            delay_days=3,
+            action_type="email_customer",
+            template=None,
+            is_active=True,
+        ))
+        await db.commit()
+
+    import uuid
+    sid = str(uuid.uuid4())
+    await client.post(
+        "/api/chat",
+        json={"session_id": sid, "message": "Test terminal cancel"},
+    )
+
+    list_res = await client.get("/api/leads", headers=admin_headers)
+    lead_id = next(
+        item["id"] for item in list_res.json()["items"] if item["session_id"] == sid
+    )
+
+    await client.patch(
+        f"/api/leads/{lead_id}",
+        json={"status": "QUOTED"},
+        headers=admin_headers,
+    )
+
+    jobs_before = await client.get(
+        f"/api/followup/jobs?lead_id={lead_id}", headers=admin_headers
+    )
+    assert len(jobs_before.json()) >= 1
+    assert all(j["status"] == "pending" for j in jobs_before.json())
+
+    upd = await client.patch(
+        f"/api/leads/{lead_id}",
+        json={"status": "WON"},
+        headers=admin_headers,
+    )
+    assert upd.status_code == 200
+
+    jobs_after = await client.get(
+        f"/api/followup/jobs?lead_id={lead_id}", headers=admin_headers
+    )
+    assert all(j["status"] == "cancelled" for j in jobs_after.json())
+
+
+@pytest.mark.asyncio
 async def test_update_lead_notes(mock_agent, client: AsyncClient, admin_headers) -> None:
     """Thêm ghi chú nội bộ cho lead."""
     import uuid

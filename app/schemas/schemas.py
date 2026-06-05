@@ -124,11 +124,27 @@ class FollowupJobOut(BaseModel):
     lead_id: int
     rule_id: int | None
     scheduled: datetime
+    action_type: Literal["email_customer", "email_internal"]
+    template: str | None
     sent_at: datetime | None
     status: str
     result_note: str | None
 
     model_config = {"from_attributes": True}
+
+
+class FollowupJobCreate(BaseModel):
+    lead_id: int
+    scheduled: datetime
+    action_type: Literal["email_customer", "email_internal"]
+    template: str | None = None
+    rule_id: int | None = None
+
+
+class FollowupJobUpdate(BaseModel):
+    scheduled: datetime | None = None
+    status: Literal["pending", "sent", "cancelled"] | None = None
+    result_note: str | None = None
 
 
 # ─────────────────────────────────────────────

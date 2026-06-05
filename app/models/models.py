@@ -84,6 +84,8 @@ class FollowupJob(Base):
     lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id", ondelete="CASCADE"))
     rule_id: Mapped[int | None] = mapped_column(ForeignKey("followup_rules.id", ondelete="SET NULL"))
     scheduled: Mapped[datetime] = mapped_column(DateTime)
+    action_type: Mapped[str] = mapped_column(Text, default="email_internal")
+    template: Mapped[str | None] = mapped_column(Text)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(Text, default="pending")  # pending | sent | cancelled
     result_note: Mapped[str | None] = mapped_column(Text)

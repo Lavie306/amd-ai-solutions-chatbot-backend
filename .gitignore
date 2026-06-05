@@ -8,6 +8,7 @@ __pycache__/
 # Data (không commit dữ liệu thực)
 data/knowledge_base/
 data/chroma_db/
+data/tmp/
 data/*.db
 
 # IDE

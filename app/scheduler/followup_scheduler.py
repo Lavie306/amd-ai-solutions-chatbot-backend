@@ -36,6 +36,36 @@ def shutdown_scheduler() -> None:
         logger.info("APScheduler stopped")
 
 
+def _scheduler_job_id(job_id: int) -> str:
+    return f"followup_{job_id}"
+
+
+def _lead_data_from_model(lead: Any) -> dict[str, Any]:
+    return {
+        "id": lead.id,
+        "name": lead.name,
+        "contact": lead.contact,
+        "project_type": lead.fields.get("project_type", ""),
+        **lead.fields,
+    }
+
+
+def register_followup_job(
+    job_id: int,
+    run_at: datetime,
+    lead_data: dict[str, Any],
+    action_type: str,
+    template: str | None,
+) -> None:
+    scheduler.add_job(
+        _execute_followup_job,
+        trigger=DateTrigger(run_date=run_at, timezone=settings.scheduler_timezone),
+        args=[job_id, lead_data, action_type, template],
+        id=_scheduler_job_id(job_id),
+        replace_existing=True,
+    )
+
+
 # ─────────────────────────────────────────────
 # Tạo follow-up jobs khi lead đổi trạng thái
 # ─────────────────────────────────────────────
@@ -70,18 +100,20 @@ async def schedule_followup_jobs(
             lead_id=lead_id,
             rule_id=rule.id,
             scheduled=run_at,
+            action_type=rule.action_type,
+            template=rule.template,
             status="pending",
         )
         db.add(job)
         await db.flush()  # Lấy job.id
 
         # Đăng ký APScheduler job
-        scheduler.add_job(
-            _execute_followup_job,
-            trigger=DateTrigger(run_date=run_at, timezone=settings.scheduler_timezone),
-            args=[job.id, lead_data, rule.action_type, rule.template],
-            id=f"followup_{job.id}",
-            replace_existing=True,
+        register_followup_job(
+            job_id=job.id,
+            run_at=run_at,
+            lead_data=lead_data,
+            action_type=rule.action_type,
+            template=rule.template,
         )
         logger.info(f"Scheduled followup job {job.id} for lead {lead_id} at {run_at}")
         count += 1
@@ -105,12 +137,43 @@ async def cancel_followup_jobs(lead_id: int, db: AsyncSession) -> None:
     jobs = result.scalars().all()
 
     for job in jobs:
-        job_id = f"followup_{job.id}"
+        job_id = _scheduler_job_id(job.id)
         if scheduler.get_job(job_id):
             scheduler.remove_job(job_id)
         job.status = "cancelled"
 
     await db.commit()
+
+
+async def reload_pending_followup_jobs() -> int:
+    """Register pending DB follow-up jobs after an app restart."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+
+    from app.db.session import AsyncSessionLocal
+    from app.models.models import FollowupJob
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(FollowupJob)
+            .options(joinedload(FollowupJob.lead))
+            .where(FollowupJob.status == "pending")
+        )
+        jobs = result.scalars().all()
+
+        count = 0
+        for job in jobs:
+            register_followup_job(
+                job_id=job.id,
+                run_at=job.scheduled,
+                lead_data=_lead_data_from_model(job.lead),
+                action_type=job.action_type,
+                template=job.template,
+            )
+            count += 1
+
+        logger.info("Reloaded %s pending follow-up jobs", count)
+        return count
 
 
 # ─────────────────────────────────────────────
@@ -125,7 +188,7 @@ async def _execute_followup_job(
     """Được gọi bởi APScheduler khi đến giờ."""
     from app.db.session import AsyncSessionLocal
     from app.models.models import FollowupJob, Setting
-    from app.services.email.email_service import send_followup_email, send_email
+    from app.services.email.email_service import render_template, send_followup_email, send_email
     from sqlalchemy import select
 
     logger.info(f"Executing followup job {job_id}")
@@ -161,9 +224,9 @@ async def _execute_followup_job(
                 body_html=template or f"Nhắc xử lý lead: {lead_data}",
             )
 
-        job.status = "sent" if success else "pending"
+        job.status = "sent" if success else "failed"
         job.sent_at = datetime.now()
-        job.result_note = "Sent successfully" if success else "Send failed — will retry"
+        job.result_note = "Sent successfully" if success else "Send failed"
         await db.commit()
 
         logger.info(f"Job {job_id} completed with success={success}")
