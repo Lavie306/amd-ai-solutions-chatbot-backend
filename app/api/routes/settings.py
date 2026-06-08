@@ -26,6 +26,24 @@ async def get_all_settings(
     return result.scalars().all()
 
 
+@router.get("/public/config")
+async def get_public_config(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Lấy cấu hình công khai phục vụ chatbot widget (tên bot, lời chào, số Zalo).
+    Không yêu cầu đăng nhập.
+    """
+    settings_dict = await settings_service.get_all(db)
+    return {
+        "bot_name": settings_dict.get("bot_name", "AMD Assistant"),
+        "welcome_message": settings_dict.get("welcome_message", "Xin chào! Tôi là trợ lý ảo của AMD AI Solutions. Tôi có thể giúp gì cho bạn?"),
+        "handoff_message": settings_dict.get("handoff_message", "Cảm ơn bạn đã để lại thông tin. Team AMD sẽ liên hệ trong vòng 24h làm việc."),
+        "zalo_number": settings_dict.get("chatbot.zalo_number", "0901 234 567"),
+        "language": settings_dict.get("chatbot.language", "vi"),
+    }
+
+
 @router.get("/{key}", response_model=SettingOut)
 async def get_setting(
     key: str,

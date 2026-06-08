@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMD AI Solutions — Demo Chatbot Integration</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-color: #111827;
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Navbar */
+        nav {
+            padding: 20px 8%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(11, 15, 25, 0.8);
+        }
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+        .nav-links a {
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Hero section */
+        .hero {
+            padding: 80px 8% 120px 8%;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 56px;
+            font-weight: 800;
+            line-height: 1.15;
+            margin: 0 0 24px 0;
+            max-width: 800px;
+        }
+        h1 span {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        /* Guide Card */
+        .guide-card {
+            background-color: var(--card-color);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            text-align: left;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .guide-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: var(--gradient);
+            z-index: -1;
+            border-radius: 22px;
+            opacity: 0.15;
+        }
+        .guide-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .guide-title i {
+            color: var(--primary);
+        }
+        code {
+            background: #080c14;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            display: block;
+            border: 1px solid rgba(255,255,255,0.03);
+            color: #34d399;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+        .steps {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .steps li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .steps li strong {
+            color: var(--text-color);
+        }
+        .steps li i {
+            color: #10b981;
+            margin-top: 3px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 30px 8%;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        /* Pulse Circle behind widget */
+        .pulse-glow {
+            position: fixed;
+            bottom: 14px;
+            right: 14px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--primary-glow);
+            filter: blur(15px);
+            z-index: 999990;
+            pointer-events: none;
+            animation: pulse 3s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav>
+        <div class="logo">
+            <i class="fa-solid fa-microchip"></i> AMD AI Solutions
+        </div>
+        <ul class="nav-links">
+            <li><a href="#">Trang chủ</a></li>
+            <li><a href="#">Dịch vụ</a></li>
+            <li><a href="#">Liên hệ</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero">
+        <div class="badge">Chatbot Widget Demo</div>
+        <h1>Tích Hợp Trợ Lý <span>AI Tự Động</span></h1>
+        <p class="subtitle">Bong bóng chat ở góc dưới bên phải màn hình đã được tích hợp tự động bằng một dòng script duy nhất. Thử click để trải nghiệm hội thoại RAG và Intent Lead Collection.</p>
+        
+        <!-- Code Guide Card -->
+        <div class="guide-card">
+            <div class="guide-title">
+                <i class="fa-solid fa-code"></i> Cách nhúng vào website của khách hàng
+            </div>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">Để chèn chatbot widget vào bất kỳ trang web nào (HTML tĩnh, WordPress, PHP...), copy và dán đoạn mã sau vào trước thẻ đóng <code>&lt;/body&gt;</code>:</p>
+            
+            <code>&lt;script src="http://localhost:8000/static/chatbot-widget.js" defer&gt;&lt;/script&gt;</code>
+            
+            <ul class="steps">
+                <li>
+                    <i class="fa-solid fa-circle-check"></i>
+                    <div><strong>Tự động kết nối API:</strong> Script tự động phát hiện đường dẫn API của máy chủ và kết nối trực tiếp.</div>
+                </li>
+                <li>
+                    <i class="fa-solid fa-circle-check"></i>
+                    <div><strong>Lưu trữ phiên chat:</strong> Sử dụng localStorage giúp lưu giữ lịch sử hội thoại khi người dùng chuyển hướng hoặc tải lại trang.</div>
+                </li>
+                <li>
+                    <i class="fa-solid fa-circle-check"></i>
+                    <div><strong>Tự động tương thích Mobile:</strong> Giao diện tự động co giãn full-screen trên thiết bị di động.</div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Pulse effect behind chat bubble -->
+    <div class="pulse-glow"></div>
+
+    <!-- Footer -->
+    <footer>
+        &copy; 2026 AMD AI Solutions. Thiết kế bởi Intern A & B.
+    </footer>
+
+    <!-- EMBED THE CHATBOT WIDGET SCRIPT -->
+    <script src="/static/chatbot-widget.js" defer></script>
+
+</body>
+</html>

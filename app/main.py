@@ -51,6 +51,15 @@ app.include_router(documents.router)
 app.include_router(followup.router)
 app.include_router(settings_router.router)
 
+# ── Static Files ──────────────────────────────
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+static_dir = Path("static")
+static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 
 # ── Lifecycle ─────────────────────────────────
 @app.on_event("startup")

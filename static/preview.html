@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal — Chatbot Live Preview</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: rgba(148, 163, 184, 0.12);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Settings Customizer Panel */
+        .customizer-panel {
+            width: 400px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .panel-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .panel-title i {
+            color: var(--accent);
+        }
+        .panel-desc {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin: 6px 0 0 0;
+        }
+
+        /* Settings Form */
+        .settings-form {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        input, textarea {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+        }
+        textarea {
+            resize: none;
+            height: 80px;
+        }
+        .btn-apply {
+            background-color: var(--accent);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        .btn-apply:hover {
+            background-color: var(--accent-hover);
+        }
+        .btn-apply:active {
+            transform: scale(0.98);
+        }
+
+        /* Live Preview Webpage Viewport */
+        .preview-viewport {
+            flex: 1;
+            background-color: #0f172a;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .iframe-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background: #fff;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Notifications & Badges */
+        .status-alert {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            display: none;
+        }
+        .status-alert.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            display: block;
+        }
+        .status-alert.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Panel: Settings Editor -->
+    <div class="customizer-panel">
+        <div class="panel-header">
+            <h2 class="panel-title"><i class="fa-solid fa-sliders"></i> Cấu hình Chatbot</h2>
+            <p class="panel-desc">Thay đổi cài đặt dưới đây và nhấn Áp dụng để cập nhật widget theo thời gian thực.</p>
+        </div>
+        
+        <div class="settings-form">
+            <div id="status-message" class="status-alert"></div>
+
+            <div class="form-group">
+                <label for="jwt-token">Admin JWT Token (Optional)</label>
+                <input type="password" id="jwt-token" placeholder="Dán JWT Token để lưu vào Database...">
+            </div>
+
+            <div class="form-group">
+                <label for="bot-name">Tên Chatbot</label>
+                <input type="text" id="bot-name" value="AMD Assistant">
+            </div>
+
+            <div class="form-group">
+                <label for="welcome-msg">Lời chào mừng</label>
+                <textarea id="welcome-msg">Xin chào! Tôi là trợ lý ảo của AMD AI Solutions. Tôi có thể giúp gì cho bạn?</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="handoff-msg">Tin nhắn bàn giao (Handoff)</label>
+                <textarea id="handoff-msg">Cảm ơn bạn đã để lại thông tin. Team AMD sẽ liên hệ trong vòng 24h làm việc.</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="zalo-num">Số điện thoại Zalo</label>
+                <input type="text" id="zalo-num" value="0901 234 567">
+            </div>
+
+            <button class="btn-apply" id="btn-apply-settings">
+                <i class="fa-solid fa-circle-check"></i> Áp dụng & Lưu
+            </button>
+        </div>
+    </div>
+
+    <!-- Right Panel: Demo Webpage Viewport -->
+    <div class="preview-viewport">
+        <div class="iframe-container">
+            <iframe id="preview-frame" src="/static/demo.html"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const tokenInput = document.getElementById("jwt-token");
+        const botNameInput = document.getElementById("bot-name");
+        const welcomeMsgInput = document.getElementById("welcome-msg");
+        const handoffMsgInput = document.getElementById("handoff-msg");
+        const zaloNumInput = document.getElementById("zalo-num");
+        const btnApply = document.getElementById("btn-apply-settings");
+        const statusMsg = document.getElementById("status-message");
+        const previewFrame = document.getElementById("preview-frame");
+
+        // Try load token from localStorage
+        const savedToken = localStorage.getItem("admin_token") || new URLSearchParams(window.location.search).get("token");
+        if (savedToken) {
+            tokenInput.value = savedToken;
+        }
+
+        // Fetch current public config to populate fields
+        async function fetchCurrentConfig() {
+            try {
+                const res = await fetch("/api/settings/public/config");
+                if (res.ok) {
+                    const data = await res.json();
+                    botNameInput.value = data.bot_name || "AMD Assistant";
+                    welcomeMsgInput.value = data.welcome_message || "";
+                    handoffMsgInput.value = data.handoff_message || "";
+                    zaloNumInput.value = data.zalo_number || "";
+                }
+            } catch (err) {
+                console.error("Failed to load settings config:", err);
+            }
+        }
+
+        // Show status helper
+        function showStatus(text, type) {
+            statusMsg.innerText = text;
+            statusMsg.className = `status-alert ${type}`;
+            setTimeout(() => {
+                statusMsg.style.display = "none";
+            }, 5000);
+        }
+
+        // Save setting key-value pair helper
+        async function saveSetting(key, value, token) {
+            const res = await fetch(`/api/settings/${key}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ value: value })
+            });
+            if (!res.ok) {
+                throw new Error(`Failed to save ${key}`);
+            }
+        }
+
+        // Apply and Save Settings
+        btnApply.addEventListener("click", async () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                showStatus("Lưu ý: Bạn cần điền JWT Token để lưu thay đổi vào cơ sở dữ liệu.", "error");
+                return;
+            }
+
+            // Save token to localStorage for convenience
+            localStorage.setItem("admin_token", token);
+
+            try {
+                btnApply.disabled = true;
+                btnApply.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang áp dụng...`;
+
+                // Update settings in database
+                await saveSetting("bot_name", botNameInput.value.trim(), token);
+                await saveSetting("welcome_message", welcomeMsgInput.value.trim(), token);
+                await saveSetting("handoff_message", handoffMsgInput.value.trim(), token);
+                await saveSetting("chatbot.zalo_number", zaloNumInput.value.trim(), token);
+
+                showStatus("Đã cập nhật cài đặt thành công! Chatbot sẽ tự làm mới.", "success");
+                
+                // Reload the iframe to load the new config
+                previewFrame.src = previewFrame.src;
+
+            } catch (err) {
+                console.error(err);
+                showStatus("Lỗi khi lưu cài đặt. Hãy kiểm tra lại JWT Token của bạn.", "error");
+            } finally {
+                btnApply.disabled = false;
+                btnApply.innerHTML = `<i class="fa-solid fa-circle-check"></i> Áp dụng & Lưu`;
+            }
+        });
+
+        // Initialize fields
+        fetchCurrentConfig();
+    </script>
+</body>
+</html>
