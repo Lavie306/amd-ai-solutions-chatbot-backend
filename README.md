@@ -92,8 +92,10 @@ API docs: http://localhost:8000/docs
 
 ## Chạy tests
 
+Chạy test suite bằng `pytest`. Trên môi trường Windows, để tránh lỗi phân quyền (`PermissionError`) khi ghi đè hoặc truy cập các thư mục tạm trong lúc chạy test song song, vui lòng sử dụng cờ `--basetemp`:
+
 ```bash
-pytest tests/ -v --cov=app --cov-report=term-missing
+python -m pytest tests/ -v --cov=app --cov-report=term-missing --basetemp=temp_pytest
 ```
 
 ---
@@ -119,7 +121,69 @@ pytest tests/ -v --cov=app --cov-report=term-missing
 | POST | /api/followup/jobs/{id}/cancel | ✅ JWT | Cancel job |
 | GET | /api/settings | ✅ JWT | Tất cả settings |
 | PUT | /api/settings/{key} | ✅ JWT | Upsert setting |
+| GET | /api/settings/public/config | ❌ | Lấy cấu hình widget công khai |
 | GET | /health | ❌ | Health check |
+
+---
+
+## Nhúng Chatbot Widget vào Website
+
+Để nhúng Chatbot Widget trực tiếp vào trang web HTML của bạn, chèn đoạn mã sau vào trước thẻ đóng `</body>`:
+
+```html
+<!-- Chatbot Widget Embed -->
+<div id="amd-chatbot-root"></div>
+<script 
+  src="http://localhost:8000/static/chatbot-widget.js" 
+  data-api-url="http://localhost:8000"
+  defer>
+</script>
+```
+
+Cấu hình widget (như tên chatbot, câu chào mừng, nút Zalo handoff) có thể được tùy biến động từ Admin Dashboard. Widget sẽ tự động gọi API công khai `/api/settings/public/config` để lấy cấu hình mới mà không yêu cầu thay đổi mã nhúng HTML.
+
+*   Trang demo nhúng widget có sẵn tại: [static/demo.html](file:///d:/AI-AMD/backend/static/demo.html)
+*   Trang xem thử dành cho Admin tại: [static/preview.html](file:///d:/AI-AMD/backend/static/preview.html)
+
+---
+
+## Hướng Dẫn Deploy lên Cloud (Render/Railway)
+
+Ứng dụng FastAPI sử dụng cơ sở dữ liệu SQLite (`data/amd_chatbot.db`) và vector database ChromaDB (`data/chroma_db`). Khi deploy lên các dịch vụ đám mây (Cloud Hosting) có thuộc tính ephemeral filesystem (như Render hoặc Railway), bạn phải cấu hình đĩa cứng lưu trữ lâu dài (Persistent Volume) để tránh mất mát dữ liệu khi container khởi động lại hoặc khi deploy phiên bản mới.
+
+### 1. Cấu hình biến môi trường (Environment Variables)
+
+Cài đặt các biến môi trường sau trên trang quản trị Render/Railway của bạn:
+
+| Biến môi trường | Giá trị mẫu / Mô tả |
+|-----------------|---------------------|
+| `OPENAI_API_KEY` | `sk-proj-...` (OpenAI API key cho RAG & Intent) |
+| `JWT_SECRET_KEY` | Một chuỗi hash bảo mật để ký token JWT (Tạo bằng lệnh Python `secrets.token_hex(32)`) |
+| `SENDGRID_API_KEY` | `SG....` (Dùng để gửi email follow-up tự động chăm sóc lead) |
+| `DATABASE_URL` | `sqlite+aiosqlite:////data/amd_chatbot.db` (Đường dẫn DB trên Volume persistent) |
+| `CHROMA_PERSIST_DIR` | `/data/chroma_db` (Thư mục ChromaDB trên Volume persistent) |
+| `KNOWLEDGE_BASE_DIR` | `/data/knowledge_base` (Thư mục chứa files upload trên Volume persistent) |
+| `JWT_ALGORITHM` | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `11520` (Mặc định 8 ngày) |
+| `SENDER_EMAIL` | `no-reply@yourdomain.com` (Email người gửi đã xác thực trên SendGrid) |
+
+### 2. Thiết lập Persistent Volume (Đĩa lưu trữ lâu dài)
+
+*   **Với Render**:
+    1. Vào tab **Disk** trong giao diện dịch vụ Web của bạn.
+    2. Chọn **Add Disk**.
+    3. Đặt Mount Path là `/data` và dung lượng tối thiểu `1 GB`.
+*   **Với Railway**:
+    1. Chọn Service, vào phần **Settings** -> **Volumes** -> **Mount Volume**.
+    2. Nhập Mount Path là `/data`.
+    3. Kiểm tra biến môi trường để chắc chắn các biến đường dẫn (`DATABASE_URL`, `CHROMA_PERSIST_DIR`, `KNOWLEDGE_BASE_DIR`) đã trỏ đúng vào thư mục `/data`.
+
+### 3. Khởi chạy bằng Dockerfile
+
+Codebase đã có sẵn `Dockerfile` hỗ trợ build đa lớp tối ưu dung lượng và chạy tự động server Uvicorn tại cổng `8000`. Lệnh khởi chạy mặc định của container:
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
 ---
 
@@ -129,13 +193,15 @@ pytest tests/ -v --cov=app --cov-report=term-missing
 NEW → CONTACTED → CONSULTING → QUOTED → NEGOTIATING → WON / LOST / COLD
 ```
 
-Khi status thay đổi → scheduler tự tạo follow-up jobs theo rules.
+Khi trạng thái lead thay đổi → scheduler tự động lập lịch hoặc hủy bỏ các tác vụ follow-up tương ứng theo rules đã cấu hình.
 
 ---
 
 ## Sync với Intern B
 
 - **API contract**: Xem `docs/api_contract.yaml`
-- **Tuần 1**: Pair programming, align schemas
-- **Tuần 2+**: Intern B gọi API qua `http://localhost:8000`
-- **CORS**: Đã cấu hình cho `http://localhost:5173` (Vite dev server)
+- **Sổ tay vận hành Admin**: Xem `docs/user_guide_admin.md`
+- **Tuần 1**: Pair programming, thống nhất schemas.
+- **Tuần 2+**: Intern B gọi API từ Frontend qua `http://localhost:8000`.
+- **CORS**: Cấu hình CORS hiện tại cho phép truy cập từ origin `http://localhost:5173` (Vite dev server).
+
