@@ -74,17 +74,28 @@ Tạo `JWT_SECRET_KEY`:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-### 3. Khởi tạo & seed database
+### 3. Khởi tạo & seed database & nạp tri thức RAG
+
+Khởi tạo cơ sở dữ liệu SQLite, tạo dữ liệu cấu hình ban đầu và nạp tài liệu FAQ vào cơ sở dữ liệu Vector (ChromaDB) để phục vụ tính năng RAG Chatbot:
 
 ```bash
+# Khởi tạo DB, tạo settings mặc định và quy tắc follow-up
 python scripts/seed_db.py
+
+# Nạp tài liệu FAQ mặc định của AMD vào Vector Database (ChromaDB)
+python scripts/ingest_default_kb.py
 ```
+
+*Tài khoản Admin mặc định để đăng nhập Dashboard (Được cấu hình trong `.env`):*
+*   **Email**: `admin@amd.vn`
+*   **Password**: `changeme123`
 
 ### 4. Chạy server
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
 
 API docs: http://localhost:8000/docs
 
