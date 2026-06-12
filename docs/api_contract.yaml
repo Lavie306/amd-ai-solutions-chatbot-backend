@@ -224,6 +224,22 @@ paths:
               properties:
                 value: {}   # any JSON value
 
+  /api/settings/public/config:
+    get:
+      summary: Lấy cấu hình widget công khai (public, không cần JWT)
+      responses:
+        "200":
+          description: Cấu hình công khai của chatbot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chatbot_name: { type: string }
+                  welcome_message: { type: string }
+                  handoff_zalo: { type: string }
+
   /health:
     get:
       summary: Health check (no auth)
+
